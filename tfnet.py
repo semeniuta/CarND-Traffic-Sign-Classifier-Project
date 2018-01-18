@@ -2,9 +2,13 @@
 Functions for automating TensorFlow tasks: network building, training, etc.
 '''
 
+import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import flatten as tf_flatten
+from sklearn.utils import shuffle as tf_shuffle
+from tqdm import tqdm
+import datetime
 
 
 def simple_image_data_scaling(data):
@@ -101,16 +105,19 @@ def create_conv2d_layer(
     return w, b, conv, act, pool
 
 
-def create_fully_connected_layer(x, out_size, distrib=tf.truncated_normal, **distrib_kvargs):
+def create_fully_connected_layer(x, out_size, with_relu=True, distrib=tf.truncated_normal, **distrib_kvargs):
 
     in_size = int(x.get_shape()[-1])
     w_shape = (in_size, out_size)
 
     w, b = create_wb((w_shape, out_size), distrib, **distrib_kvargs)
     fc = fully_connected(x, w, b)
-    act = tf.nn.relu(fc)
 
-    return w, b, fc, act
+    if with_relu:
+        act = tf.nn.relu(fc)
+        return w, b, fc, act
+
+    return w, b, fc
 
 
 def gather_tensors(*elements):
@@ -129,11 +136,76 @@ def gather_tensors(*elements):
 
 def basic_lenet(x):
 
-    conv_1 = create_conv2d_layer(x, (28, 28, 6))
-    conv_2 = create_conv2d_layer(conv_1[-1], (10, 10, 16))
+    conv_1 = create_conv2d_layer(x, (28, 28, 6), mean=0, stddev=1.)
+    conv_2 = create_conv2d_layer(conv_1[-1], (10, 10, 16), mean=0, stddev=1.)
     flat = tf_flatten(conv_2[-1])
-    fc_1 = create_fully_connected_layer(flat, 120)
-    fc_2 = create_fully_connected_layer(fc_1[-1], 84)
-    fc_3 = create_fully_connected_layer(fc_2[-1], 42)
+    fc_1 = create_fully_connected_layer(flat, 120, mean=0, stddev=1.)
+    fc_2 = create_fully_connected_layer(fc_1[-1], 84, mean=0, stddev=1.)
+    fc_3 = create_fully_connected_layer(fc_2[-1], 43, with_relu=False, mean=0, stddev=1.)
 
     return gather_tensors(conv_1, conv_2, flat, fc_1, fc_2, fc_3)
+
+
+def create_training_tensor(y_hat, y, rate=0.001):
+
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=y_hat)
+    loss_operation = tf.reduce_mean(cross_entropy)
+    optimizer = tf.train.AdamOptimizer(learning_rate=rate)
+
+    return optimizer.minimize(loss_operation)
+
+
+def create_accuracy_tensor(y_hat, y):
+
+    correct_prediction = tf.equal(tf.argmax(y_hat, 1), tf.argmax(y, 1))
+    return tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+
+def evaluate_accuracy(accuracy_tensor, x_tensor, y_tensor, x_data, y_data, batch_size):
+
+    n_examples = len(x_data)
+
+    total_accuracy = 0
+    session = tf.get_default_session()
+
+    for offset in range(0, n_examples, batch_size):
+
+        end = offset + batch_size
+        batch_x, batch_y = x_data[offset:end], y_data[offset:end]
+
+        accuracy = session.run(accuracy_tensor, feed_dict={x_tensor: batch_x, y_tensor: batch_y})
+        total_accuracy += (accuracy * len(batch_x))
+
+    return total_accuracy / n_examples
+
+
+def train_nn(training_tensor, accuracy_tensor, x_tensor, y_tensor, x_train, y_train, x_valid, y_valid, n_epochs, batch_size, save_dir='.'):
+
+    saver = tf.train.Saver()
+    fname = 'nn_' + datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S") + '.tensorflow'
+
+    with tf.Session() as session:
+
+        session.run(tf.global_variables_initializer())
+        n_examples = len(x_train)
+
+        for i in range(n_epochs):
+
+            x_train, y_data = tf_shuffle(x_train, y_train)
+
+            for offset in range(0, n_examples, batch_size):
+
+                end = offset + batch_size
+                batch_x, batch_y = x_train[offset:end], y_train[offset:end]
+
+                session.run(training_tensor, feed_dict={x_tensor: batch_x, y_tensor: batch_y})
+
+            validation_accuracy = evaluate_accuracy(accuracy_tensor, x_tensor, y_tensor, x_valid, y_valid, batch_size)
+
+            print("Epoch {} ...".format(i + 1))
+            print("Validation Accuracy = {:.3f}".format(validation_accuracy))
+            print()
+
+        saver.save(session, os.path.join(save_dir, fname))
+
+    return fname
