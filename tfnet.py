@@ -136,12 +136,12 @@ def gather_tensors(*elements):
 
 def basic_lenet(x):
 
-    conv_1 = create_conv2d_layer(x, (28, 28, 6), mean=0, stddev=1.)
-    conv_2 = create_conv2d_layer(conv_1[-1], (10, 10, 16), mean=0, stddev=1.)
+    conv_1 = create_conv2d_layer(x, (28, 28, 6), mean=0, stddev=0.1)
+    conv_2 = create_conv2d_layer(conv_1[-1], (10, 10, 16), mean=0, stddev=0.1)
     flat = tf_flatten(conv_2[-1])
-    fc_1 = create_fully_connected_layer(flat, 120, mean=0, stddev=1.)
-    fc_2 = create_fully_connected_layer(fc_1[-1], 84, mean=0, stddev=1.)
-    fc_3 = create_fully_connected_layer(fc_2[-1], 43, with_relu=False, mean=0, stddev=1.)
+    fc_1 = create_fully_connected_layer(flat, 120, mean=0, stddev=0.1)
+    fc_2 = create_fully_connected_layer(fc_1[-1], 84, mean=0, stddev=0.1)
+    fc_3 = create_fully_connected_layer(fc_2[-1], 43, with_relu=False, mean=0, stddev=0.1)
 
     return gather_tensors(conv_1, conv_2, flat, fc_1, fc_2, fc_3)
 
@@ -191,7 +191,7 @@ def train_nn(training_tensor, accuracy_tensor, x_tensor, y_tensor, x_train, y_tr
 
         for i in range(n_epochs):
 
-            x_train, y_data = tf_shuffle(x_train, y_train)
+            x_train, y_train = tf_shuffle(x_train, y_train)
 
             for offset in range(0, n_examples, batch_size):
 
