@@ -105,7 +105,9 @@ def create_conv2d_layer(
     return w, b, conv, act, pool
 
 
-def create_fully_connected_layer(x, out_size, with_relu=True, distrib=tf.truncated_normal, **distrib_kvargs):
+def create_fully_connected_layer(
+    x, out_size, final_layer=False, distrib=tf.truncated_normal, **distrib_kvargs
+):
 
     in_size = int(x.get_shape()[-1])
     w_shape = (in_size, out_size)
@@ -113,11 +115,12 @@ def create_fully_connected_layer(x, out_size, with_relu=True, distrib=tf.truncat
     w, b = create_wb((w_shape, out_size), distrib, **distrib_kvargs)
     fc = fully_connected(x, w, b)
 
-    if with_relu:
-        act = tf.nn.relu(fc)
-        return w, b, fc, act
+    if final_layer:
+        return w, b, fc
 
-    return w, b, fc
+    act = tf.nn.relu(fc)
+
+    return w, b, fc, act
 
 
 def gather_tensors(*elements):
@@ -141,9 +144,29 @@ def basic_lenet(x):
     flat = tf_flatten(conv_2[-1])
     fc_1 = create_fully_connected_layer(flat, 120, mean=0, stddev=0.1)
     fc_2 = create_fully_connected_layer(fc_1[-1], 84, mean=0, stddev=0.1)
-    fc_3 = create_fully_connected_layer(fc_2[-1], 43, with_relu=False, mean=0, stddev=0.1)
+    fc_3 = create_fully_connected_layer(fc_2[-1], 43, final_layer=True, mean=0, stddev=0.1)
 
     return gather_tensors(conv_1, conv_2, flat, fc_1, fc_2, fc_3)
+
+
+def cool_convnet(x, **distrib_kvargs):
+
+    dropout_prob = tf.placeholder(tf.float32)
+
+    conv_1 = create_conv2d_layer(x, (28, 28, 6), **distrib_kvargs)
+    conv_2 = create_conv2d_layer(conv_1[-1], (10, 10, 16), **distrib_kvargs)
+    flat = tf_flatten(conv_2[-1])
+
+    fc_1 = create_fully_connected_layer(flat, 120, **distrib_kvargs)
+    do_1 = tf.nn.dropout(fc_1[-1], keep_prob=dropout_prob)
+
+    fc_2 = create_fully_connected_layer(do_1, 84, **distrib_kvargs)
+    do_2 = tf.nn.dropout(fc_2[-1], keep_prob=dropout_prob)
+
+    fc_3 = create_fully_connected_layer(do_2, 43, final_layer=True, **distrib_kvargs)
+    do_3 = tf.nn.dropout(fc_3[-1], keep_prob=dropout_prob)
+
+    return gather_tensors(dropout_prob, conv_1, conv_2, flat, fc_1, do_1, fc_2, do_2, fc_3, do_3)
 
 
 def create_training_tensor(y_hat, y, rate=0.001):
@@ -161,7 +184,7 @@ def create_accuracy_tensor(y_hat, y):
     return tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 
-def evaluate_accuracy(accuracy_tensor, x_tensor, y_tensor, x_data, y_data, batch_size):
+def evaluate_accuracy(accuracy_tensor, x_tensor, y_tensor, dropout_prob_tensor, x_data, y_data, batch_size):
 
     n_examples = len(x_data)
 
@@ -173,23 +196,33 @@ def evaluate_accuracy(accuracy_tensor, x_tensor, y_tensor, x_data, y_data, batch
         end = offset + batch_size
         batch_x, batch_y = x_data[offset:end], y_data[offset:end]
 
-        accuracy = session.run(accuracy_tensor, feed_dict={x_tensor: batch_x, y_tensor: batch_y})
+        fd = {x_tensor: batch_x, y_tensor: batch_y, dropout_prob_tensor: 1.}
+        accuracy = session.run(accuracy_tensor, feed_dict=fd)
         total_accuracy += (accuracy * len(batch_x))
 
     return total_accuracy / n_examples
 
 
-def train_nn(training_tensor, accuracy_tensor, x_tensor, y_tensor, x_train, y_train, x_valid, y_valid, n_epochs, batch_size, save_dir='.'):
+def train_nn(
+    training_tensor, accuracy_tensor,
+    x_tensor, y_tensor,
+    x_train, y_train,
+    x_valid, y_valid,
+    dropout_prob_tensor, dropout_prob_value,
+    n_epochs, batch_size,
+    save_dir='.'
+):
+
+    n_examples = len(x_train)
 
     saver = tf.train.Saver()
     fname = 'nn_' + datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S") + '.tensorflow'
 
     with tf.Session() as session:
-
         session.run(tf.global_variables_initializer())
-        n_examples = len(x_train)
 
         for i in range(n_epochs):
+            print("Epoch {} ...".format(i + 1))
 
             x_train, y_train = tf_shuffle(x_train, y_train)
 
@@ -198,11 +231,21 @@ def train_nn(training_tensor, accuracy_tensor, x_tensor, y_tensor, x_train, y_tr
                 end = offset + batch_size
                 batch_x, batch_y = x_train[offset:end], y_train[offset:end]
 
-                session.run(training_tensor, feed_dict={x_tensor: batch_x, y_tensor: batch_y})
+                fd = {
+                    x_tensor: batch_x,
+                    y_tensor: batch_y,
+                    dropout_prob_tensor: dropout_prob_value
+                }
+                session.run(training_tensor, feed_dict=fd)
 
-            validation_accuracy = evaluate_accuracy(accuracy_tensor, x_tensor, y_tensor, x_valid, y_valid, batch_size)
+            validation_accuracy = evaluate_accuracy(
+                accuracy_tensor,
+                x_tensor, y_tensor,
+                dropout_prob_tensor,
+                x_valid, y_valid,
+                batch_size
+            )
 
-            print("Epoch {} ...".format(i + 1))
             print("Validation Accuracy = {:.3f}".format(validation_accuracy))
             print()
 
