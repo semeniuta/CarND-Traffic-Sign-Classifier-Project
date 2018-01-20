@@ -216,7 +216,9 @@ def train_nn(
     n_examples = len(x_train)
 
     saver = tf.train.Saver()
-    fname = 'nn_' + datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S") + '.tensorflow'
+    fname = 'nn_' + datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+
+    accuracies = np.zeros(n_epochs)
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -247,8 +249,15 @@ def train_nn(
             )
 
             print("Validation Accuracy = {:.3f}".format(validation_accuracy))
-            print()
 
-        saver.save(session, os.path.join(save_dir, fname))
+            if i > 0  and validation_accuracy > accuracies.max():
+                print('Saving')
+                saver.save(session, os.path.join(save_dir, fname))
+                with open(os.path.join(save_dir, fname + '_descr'), 'w') as f:
+                    f.write('Time: {:s}\n'.format( datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") ))
+                    f.write('Epoch: {:d}\n'.format(i+1))
+                    f.write('Accuracy: {:.3f}\n'.format(validation_accuracy))
 
-    return fname
+            accuracies[i] = validation_accuracy
+
+    return accuracies, fname
