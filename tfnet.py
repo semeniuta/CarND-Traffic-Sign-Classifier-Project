@@ -190,6 +190,48 @@ def cool_convnet(x, **distrib_kvargs):
     return gather_tensors(dropout_prob, conv_1, conv_2, flat, fc_1, do_1, fc_2, do_2, fc_3, do_3)
 
 
+def create_convnet(
+    conv_layers = [(28, 28, 6), (10, 10, 16)],
+    fc_layers = [120, 84, 43],
+    **distrib_kvargs
+):
+
+    def convnet(x):
+
+        dropout_prob = tf.placeholder(tf.float32)
+
+        groups = [dropout_prob]
+
+        conv_in = x
+        for conv_layer_shape in conv_layers:
+            cl = create_conv2d_layer(conv_in, conv_layer_shape, **distrib_kvargs)
+            conv_in = cl[-1]
+            groups.append(cl)
+
+        last_tensor = groups[-1][-1]
+        flat = tf_flatten(last_tensor)
+
+        last_idx = len(fc_layers) - 1
+        is_final = False
+
+        fc_in = flat
+        for i, fc_layer_size in enumerate(fc_layers):
+
+            is_final = (i == last_idx)
+
+            fc = create_fully_connected_layer(fc_in, fc_layer_size, final_layer=is_final, **distrib_kvargs)
+            do = tf.nn.dropout(fc[-1], keep_prob=dropout_prob)
+
+            fc_in = do
+
+            groups.append(fc)
+            groups.append(do)
+
+        return gather_tensors(*groups)
+
+    return convnet
+
+
 def create_training_tensor(y_hat, y, rate=0.001):
 
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=y_hat)
