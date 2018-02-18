@@ -121,7 +121,7 @@ In the training phase, outputs of every convolutional layer is fed to a dropout 
 
 ### Grid search experiments
 
-To find out how different hyperparameters affect the convnet performance, two grid search experiments were performed (the first on a local computer, and the second on an AWS GPU instance).
+To find out how different hyperparameters affect the convnet performance, two grid search experiments were performed (the first on a local computer, and the second on an AWS GPU instance). Both experiments ran for 20 epochs and kept track of how classification accuracy evolved throughout each epoch.
 
 The first experiment (`grid-search-1.py`) varied different learning rates, batch sizes and dropout probabilities:
 
@@ -166,3 +166,5 @@ The trained convnet predicted 7/12 images correctly. The original set of the web
 The top 5 softmax probabilities for each web image are show in the following figure (green bar charts correspond to correctly classified images and red bar charts otherwise):
 
 ![alt text][WebImagesProbab]
+
+As can be seen from the last figure, in general, a correct prediction is characterized by more "certain" distribution of softmax probabilities, while failed prediction has less certainty. An odd exception is the wrongly classified stop sing. One possibility for this fail might be unbalance in the number of training images (690 for "Stop" and 1890 for "Priority road"). Similar explanation might hold true also for wrong classification of "Children crossing" (480 training examples). The proportion of the area of the actual sign region seems to have a big influence on accuracy as well.
