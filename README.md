@@ -6,6 +6,6 @@ Traffic sign classification project for the Udacity Self-Driving Nanodegree by O
 
 Related resources:
 
- * [The original project template](https://github.com/udacity/CarND-LaneLines-P1)
+ * [The original project template](https://github.com/udacity/CarND-Traffic-Sign-Classifier-Project)
  * [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit)
  * [German Traffic Sign Dataset](http://benchmark.ini.rub.de/?section=gtsrb&subsection=dataset)

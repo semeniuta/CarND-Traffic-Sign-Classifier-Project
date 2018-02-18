@@ -66,10 +66,10 @@ if __name__ == '__main__':
 
     nn_configurations = (
         {'conv_layers': [(28, 28, 6), (10, 10, 16)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1},
-        #{'conv_layers': [(28, 28, 7), (10, 10, 17)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1},
-        #{'conv_layers': [(28, 28, 8), (10, 10, 18)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1},
-        #{'conv_layers': [(28, 28, 9), (10, 10, 19)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1},
-        #{'conv_layers': [(28, 28, 10), (10, 10, 20)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1}
+        {'conv_layers': [(28, 28, 7), (10, 10, 17)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1},
+        {'conv_layers': [(28, 28, 8), (10, 10, 18)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1},
+        {'conv_layers': [(28, 28, 9), (10, 10, 19)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1},
+        {'conv_layers': [(28, 28, 10), (10, 10, 20)], 'fc_layers': [120, 84, 43], 'mean': 0., 'stddev': 0.1}
     )
 
     grid_search(nn_configurations)
