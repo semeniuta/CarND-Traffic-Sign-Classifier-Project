@@ -38,16 +38,32 @@ def simple_image_data_scaling(data):
 
 
 def get_image_data_mean_per_channel(data, n_channels=3):
+    '''
+    For image data loaded as a signle 4D tensor, compute
+    mean intensity per channel.
 
-    return [ data[:, :, :, channel].mean() for channel in range(n_channels)]
+    Returns a list of means.
+    '''
+
+    return [ data[:, :, :, channel].mean() for channel in range(n_channels) ]
 
 
 def get_image_data_std_per_channel(data, n_channels=3):
+    '''
+    For image data loaded as a signle 4D tensor, compute
+    standard deviation of intensity per channel.
 
-    return [ data[:, :, :, channel].std() for channel in range(n_channels)]
+    Returns a list of standard deviations.
+    '''
+
+    return [ data[:, :, :, channel].std() for channel in range(n_channels) ]
 
 
 def image_data_scaling(data, means, divide_by=255.):
+    '''
+    Scale image data by subtracting means per channel
+    and dividing by 255
+    '''
 
     result = np.zeros_like(data, dtype=np.float32)
 
